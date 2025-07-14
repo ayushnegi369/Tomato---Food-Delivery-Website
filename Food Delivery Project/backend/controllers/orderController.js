@@ -1,10 +1,76 @@
 import orderModel from "../models/orderModel.js"; // Importing the order model
 import userModel from "../models/userModel.js"; // Importing the user model
-import Stripe from "stripe"; // Importing the Stripe library for payment handling
+import Razorpay from "razorpay";
+import crypto from "crypto";
 import "dotenv/config";
 
-// Initializing Stripe with the secret key from the environment variables
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Razorpay instance (use dummy/test keys for now)
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_dummyid",
+    key_secret: process.env.RAZORPAY_KEY_SECRET || "dummysecret"
+});
+
+// Create Razorpay order
+const createRazorpayOrder = async (req, res) => {
+    try {
+        const { amount, currency = "INR" } = req.body;
+        if (!amount) return res.status(400).json({ success: false, message: "Amount is required" });
+        const options = {
+            amount: amount * 100, // amount in paise
+            currency,
+            receipt: `receipt_order_${Date.now()}`,
+        };
+        const order = await razorpay.orders.create(options);
+        res.status(200).json({ success: true, order });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Could not create Razorpay order" });
+    }
+};
+
+// Verify Razorpay payment and save order
+const verifyRazorpayPayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, items, amount, address } = req.body;
+        const userId = req.body.userId;
+        // Log all incoming values
+        console.log("--- Razorpay Payment Verification Debug ---");
+        console.log("razorpay_order_id:", razorpay_order_id);
+        console.log("razorpay_payment_id:", razorpay_payment_id);
+        console.log("razorpay_signature:", razorpay_signature);
+        console.log("userId (from auth middleware):", userId);
+        console.log("items:", items);
+        console.log("amount:", amount);
+        console.log("address:", address);
+        console.log("RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET);
+        // Verify signature
+        const sign = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(sign)
+            .digest("hex");
+        console.log("expectedSignature:", expectedSignature);
+        if (expectedSignature !== razorpay_signature) {
+            console.log("Signature mismatch!");
+            return res.status(400).json({ success: false, message: "Invalid payment signature" });
+        }
+        // Save order only if payment is verified
+        const newOrder = new orderModel({
+            userId,
+            items,
+            amount,
+            address,
+            payment: true
+        });
+        await newOrder.save();
+        // Clear user's cart
+        await userModel.findByIdAndUpdate(userId, { cartData: {} });
+        console.log("Order placed successfully!");
+        res.status(201).json({ success: true, message: "Payment verified and order placed" });
+    } catch (error) {
+        console.error("Payment verification failed:", error);
+        res.status(500).json({ success: false, message: "Payment verification failed" });
+    }
+};
 
 // Function to place an order, triggered by a request from the frontend
 const placeOrder = async (req, res) => {
@@ -52,16 +118,17 @@ const placeOrder = async (req, res) => {
         });
 
         // 6. Create a Stripe Checkout session
-        const session = await stripe.checkout.sessions.create({
-            line_items: line_items, // Add the line items to the Stripe session
-            mode: "payment", // Payment mode for processing the order
-            // Define success and cancel URLs to handle redirection after payment
-            success_url: `${frontend_url}/verify?success=true&orderId=${newOrder._id}`, // Redirect on successful payment
-            cancel_url: `${frontend_url}/verify?success=false&orderId=${newOrder._id}`, // Redirect if the payment fails or is canceled
-        });
+        // const session = await stripe.checkout.sessions.create({
+        //     line_items: line_items, // Add the line items to the Stripe session
+        //     mode: "payment", // Payment mode for processing the order
+        //     // Define success and cancel URLs to handle redirection after payment
+        //     success_url: `${frontend_url}/verify?success=true&orderId=${newOrder._id}`, // Redirect on successful payment
+        //     cancel_url: `${frontend_url}/verify?success=false&orderId=${newOrder._id}`, // Redirect if the payment fails or is canceled
+        // });
 
         // 7. Send the Stripe session URL back to the frontend
-        res.json({ success: true, session_url: session.url });
+        // res.json({ success: true, session_url: session.url });
+        res.json({ success: true, message: "Order placed successfully (Stripe integration pending)" });
     } catch (error) {
         // Log the error and return a response with an error message
         console.log(error);
@@ -69,4 +136,17 @@ const placeOrder = async (req, res) => {
     }
 };
 
-export { placeOrder };
+// Get all orders for a user
+const getUserOrders = async (req, res) => {
+    try {
+        const userId = req.body.userId;
+        if (!userId) return res.status(400).json({ success: false, message: "User ID required" });
+        const orders = await orderModel.find({ userId }).sort({ date: -1 });
+        res.status(200).json({ success: true, orders });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Could not fetch orders" });
+    }
+};
+
+export { createRazorpayOrder, verifyRazorpayPayment, placeOrder, getUserOrders };

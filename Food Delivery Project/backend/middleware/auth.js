@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken"; // Import the jsonwebtoken library for token han
 const authMiddleware = async (req, res, next) => {
     // Extract the token from the request headers
     const { token } = req.headers;
+    console.log('Auth middleware hit, token:', token);
 
     // Check if a token is provided; if not, respond with an unauthorized message
     if (!token) {

@@ -6,6 +6,7 @@ import Cart from "./pages/Cart/Cart";
 import PlaceOrder from "./pages/PlaceOrder/PlaceOrder";
 import Footer from "./components/Footer/Footer";
 import LoginPopup from "./components/LoginPopup/LoginPopup";
+import Orders from "./pages/Orders";
 
 const App = () => {
     // State to control the visibility of the LoginPopup
@@ -31,6 +32,9 @@ const App = () => {
 
                     {/* Place Order page route */}
                     <Route path="/order" element={<PlaceOrder />} />
+
+                    {/* Orders page route */}
+                    <Route path="/orders" element={<Orders />} />
                 </Routes>
             </div>
 

@@ -84,6 +84,13 @@ const StoreContextProvider = (props) => {
     };
 
     /**
+     * Function to clear the cart after order placement.
+     */
+    const clearCart = () => {
+        setCartItems({});
+    };
+
+    /**
      * Fetch the list of food items from the backend API.
      * It sets the retrieved data in the food_list state.
      */
@@ -140,6 +147,7 @@ const StoreContextProvider = (props) => {
         url,
         token,
         setToken,
+        clearCart, // Add clearCart to context
     };
 
     return (
