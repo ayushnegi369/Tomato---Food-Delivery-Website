@@ -1,14 +1,14 @@
 import mongoose from "mongoose"; // Import the mongoose library to interact with MongoDB
-import "dotenv/config"; // Import dotenv to load environment variables from a .env file
 
 // Function to connect to MongoDB using mongoose
 export const connectDB = async () => {
-    // Use mongoose to connect to the MongoDB database
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+        console.error("DB Connection Failed: MONGO_URI is not set in environment variables");
+        throw new Error("MONGO_URI not configured");
+    }
     await mongoose
-        .connect(
-            // Construct the MongoDB connection string using environment variables for username and password
-            `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@cluster0.as43i97.mongodb.net/food-del`
-        )
+        .connect(mongoUri)
         // If the connection is successful, log "DB Connected" to the console
         .then(() => {
             console.log("DB Connected");

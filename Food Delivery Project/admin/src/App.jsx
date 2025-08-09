@@ -10,7 +10,7 @@ import { ToastContainer } from "react-toastify"; // Toast notifications for user
 import "react-toastify/dist/ReactToastify.css"; // Importing toast styles
 
 const App = () => {
-    const url = "http://localhost:4000"; // Base URL for API calls
+    const url = import.meta.env.VITE_API_URL || "http://localhost:4000"; // Base URL for API calls
 
     return (
         <div className="app">

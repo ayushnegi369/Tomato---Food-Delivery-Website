@@ -4,11 +4,14 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import "dotenv/config";
 
-// Initialize Razorpay instance (use dummy/test keys for now)
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_dummyid",
-    key_secret: process.env.RAZORPAY_KEY_SECRET || "dummysecret"
-});
+// Lazily initialize Razorpay so the app can start without keys in non-payment flows
+const getRazorpay = () => {
+    const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        throw new Error("Razorpay credentials not configured (RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET)");
+    }
+    return new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
+};
 
 // Create Razorpay order
 const createRazorpayOrder = async (req, res) => {
@@ -20,7 +23,7 @@ const createRazorpayOrder = async (req, res) => {
             currency,
             receipt: `receipt_order_${Date.now()}`,
         };
-        const order = await razorpay.orders.create(options);
+        const order = await getRazorpay().orders.create(options);
         res.status(200).json({ success: true, order });
     } catch (error) {
         console.error(error);
@@ -42,10 +45,14 @@ const verifyRazorpayPayment = async (req, res) => {
         console.log("items:", items);
         console.log("amount:", amount);
         console.log("address:", address);
-        console.log("RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET);
+        // Do not log secrets
         // Verify signature
         const sign = razorpay_order_id + "|" + razorpay_payment_id;
-        const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        const razorpaySecret = process.env.RAZORPAY_KEY_SECRET;
+        if (!razorpaySecret) {
+            return res.status(500).json({ success: false, message: "Payment verification unavailable: RAZORPAY_KEY_SECRET not configured" });
+        }
+        const expectedSignature = crypto.createHmac("sha256", razorpaySecret)
             .update(sign)
             .digest("hex");
         console.log("expectedSignature:", expectedSignature);

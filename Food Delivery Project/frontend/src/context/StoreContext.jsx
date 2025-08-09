@@ -8,8 +8,9 @@ const StoreContextProvider = (props) => {
     // State to manage cart items with their quantities
     const [cartItems, setCartItems] = useState({});
 
-    // Backend API URL
-    const url = "http://localhost:4000";
+    // Backend API URL (read from env for deployments)
+    const url =
+        "https://tomato-project-backend.onrender.com";
 
     // State to store the user token (for authentication)
     const [token, setToken] = useState("");

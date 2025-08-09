@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken"; // Import the jsonwebtoken library for token han
 const authMiddleware = async (req, res, next) => {
     // Extract the token from the request headers
     const { token } = req.headers;
-    console.log('Auth middleware hit, token:', token);
 
     // Check if a token is provided; if not, respond with an unauthorized message
     if (!token) {
@@ -16,7 +15,7 @@ const authMiddleware = async (req, res, next) => {
 
     try {
         // Verify the token using the secret key from the environment variables
-        const token_decode = jwt.verify(token, process.env.JWT_SECRET);
+        const token_decode = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
 
         // If the token is valid, attach the user ID from the token payload to the request body
         req.body.userId = token_decode.id;
